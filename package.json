@@ -1,0 +1,25 @@
+{
+  "name": "rest-amqp",
+  "version": "0.0.1",
+  "description": "Rest API using amqp protocol build on nodejs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bikashsharmabks/rest-amqp.git"
+  },
+  "keywords": [
+    "rest",
+    "api",
+    "microservice",
+    "ampq"
+  ],
+  "author": "Bikash Kumar Sharma",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/bikashsharmabks/rest-amqp/issues"
+  },
+  "homepage": "https://github.com/bikashsharmabks/rest-amqp#readme"
+}
