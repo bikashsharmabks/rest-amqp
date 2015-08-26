@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/bikashsharmabks/rest-amqp#readme",
   "dependencies": {
+    "amqp": "^0.2.4",
     "debug": "^2.2.0",
     "restify": "^4.0.0"
   }
