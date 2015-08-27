@@ -1,9 +1,10 @@
 var restify = require('restify');
 var debug   = require('debug')('rest-amqp');
 var amqp    = require('amqp');
+var uuid    = require('node-uuid');
 
 function send(req, res, next) {
-    res.send('hello ' + req.params.name);
+    res.send('Hello from rest-amqp');
     return next();
 }
 
@@ -21,6 +22,12 @@ function RestAmqp(opt) {
     this.__amqp.exchange_name =
        opt.amqp_exchange ? opt.amqp_exchange : 'work-exchange';
 
+    this.__amqp.default_queue =
+       opt.default_queue ? opt.default_queue : 'work-queue';
+
+    this.__amqp.reply_to_queue =
+       opt.reply_to_queue ? opt.reply_to_queue : 'reply-queue';
+
     this.__amqp.exchange_options =
        opt.amqp_exchange_options ? opt.amqp_exchange_options :
        {exclusive: false, autoDelete: true };
@@ -36,13 +43,17 @@ function RestAmqp(opt) {
     this.__http.port =
         opt.http_port ? opt.http_port : '8080';
 
-    this._initHttp();
-    this._initAmqp();
+    this.routes = [];
 }
 
 RestAmqp.prototype._initHttp = function () {
     this.http = restify.createServer({
         name:'rest-amqp-http'
+    });
+
+    this.http.on('NotFound', function (req, res, next) {
+        res.send('the needs to create message');
+        return next();
     });
 };
 
@@ -66,13 +77,78 @@ RestAmqp.prototype._initAmqp = function () {
     });
 };
 
-RestAmqp.prototype.listen = function () {
-    this.http.listen(this.__http.port);
+RestAmqp.prototype.setUpExchanges = function () {
+    this.amqp_conn.exchange(this.__amqp.exchange_name, { type: 'topic'},
+        function (exchange) {
+            debug(exchange);
+        });
+};
 
-    this.http.get('/hello/:name', send);
+RestAmqp.prototype.listen = function (port) {
+    this.__http.port =
+        port ? port : this.__http.port;
+
+    this._initHttp();
+    this._initAmqp();
+
+    this.setUpExchanges();
+
+    this.http.get('/http-heartbeat', send);
+
+    this.http.listen(this.__http.port);
 
     debug('listening on port:' + this.__http.port);
 };
+
+[
+    'del',
+    'get',
+    'head',
+    'opts',
+    'post',
+    'put',
+    'patch'
+].forEach(function (method) {
+    RestAmqp.prototype[method] = function () {
+
+        if (arguments.length < 2) {
+            throw new TypeError('handler (function) required');
+        }
+
+        var args = Array.prototype.slice.call(arguments);
+
+        var url = args[0];
+        var queue = this.__amqp.default_queue;
+        var callback = args[1];
+
+        if (arguments.length == 3) {
+            queue = args[1];
+            callback = args[2];
+        }
+
+        if (typeof (url) !== 'string') {
+            throw new TypeError('path (string) required');
+        };
+
+        var route = {
+            id : uuid.v4(),
+            queue : queue,
+            routingKey: '',
+            type : method,
+            url : url,
+            replyTo : this.__amqp.reply_to_queue,
+            parameters : [],
+            query : [],
+            header : [],
+            cb : callback
+        };
+
+        debug(route);
+        this.routes.push(route);
+
+        callback('request', 'response');
+    };
+});
 
 module.exports.init = function (opt) {
     return new RestAmqp(opt);

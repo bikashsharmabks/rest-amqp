@@ -25,6 +25,7 @@
   "dependencies": {
     "amqp": "^0.2.4",
     "debug": "^2.2.0",
+    "node-uuid": "^1.4.3",
     "restify": "^4.0.0"
   }
 }
