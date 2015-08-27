@@ -1,7 +1,7 @@
 var restAMQP = require('../index').init();
 var debug    = require('debug')('rest-amqp-sample');
 
-restAMQP.get('/hi', function (req, res) {
+restAMQP.get('/hi/:id', function (req, res) {
     debug(req);
     debug(res);
 });

@@ -50,11 +50,6 @@ RestAmqp.prototype._initHttp = function () {
     this.http = restify.createServer({
         name:'rest-amqp-http'
     });
-
-    this.http.on('NotFound', function (req, res, next) {
-        res.send('the needs to create message');
-        return next();
-    });
 };
 
 RestAmqp.prototype._initAmqp = function () {
@@ -133,10 +128,11 @@ RestAmqp.prototype.listen = function (port) {
         var route = {
             id : uuid.v4(),
             queue : queue,
-            routingKey: '',
+            routingKey: makeRequestRoutingKey(method, url),
+            replyTo : this.__amqp.reply_to_queue,
             type : method,
             url : url,
-            replyTo : this.__amqp.reply_to_queue,
+            body: {},
             parameters : [],
             query : [],
             header : [],
@@ -149,6 +145,11 @@ RestAmqp.prototype.listen = function (port) {
         callback('request', 'response');
     };
 });
+
+function makeRequestRoutingKey (method, url) {
+    var routingKey = 'REQUEST.WORK.' + method.toUpperCase() + url.replace(/\//g, '.');
+    return routingKey;
+}
 
 module.exports.init = function (opt) {
     return new RestAmqp(opt);
