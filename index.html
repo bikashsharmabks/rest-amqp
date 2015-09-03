@@ -19,8 +19,24 @@
     </section>
 
     <section class="main-content">
-      <h3>
-<a id="welcome-to-rest-amqp-github-pages" class="anchor" href="#welcome-to-rest-amqp-github-pages" aria-hidden="true"><span class="octicon octicon-link"></span></a>Welcome to rest-amqp GitHub Pages.</h3>
+      <h2>
+<a id="rest-amqp-is-rest-api-using-amqp-protocol-for-nodejs-build-micro-service-over-it" class="anchor" href="#rest-amqp-is-rest-api-using-amqp-protocol-for-nodejs-build-micro-service-over-it" aria-hidden="true"><span class="octicon octicon-link"></span></a>"rest-amqp is Rest API using amqp protocol for NodeJS. Build micro-service over it"</h2>
+
+<hr>
+
+<pre><code>npm install --save rest-amqp
+</code></pre>
+
+<p>Example:
+    var restAMQP = require('../index').init();
+    var debug    = require('debug')('rest-amqp-sample');</p>
+
+<pre><code>restAMQP.get('/hi/:id', function (req, res) {
+   res.send("Hello rest-amqp");
+});
+
+restAMQP.listen(8080);
+</code></pre>
 
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
