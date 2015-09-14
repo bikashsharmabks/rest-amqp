@@ -6,4 +6,4 @@ restAMQP.get('/hi/:id', function (req, res) {
     debug(res);
 });
 
-restAMQP.listen();
+restAMQP.listen(8081);
