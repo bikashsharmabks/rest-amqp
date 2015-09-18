@@ -1,7 +1,9 @@
-var restify = require('restify');
+
 var debug   = require('debug')('rest-amqp');
-var amqp    = require('amqp');
+
 var uuid    = require('node-uuid');
+var Rest    = require('./lib/rest');
+var Amqp    = require('./lib/amqp');
 
 function send(req, res, next) {
     res.send('Hello from rest-amqp');
@@ -44,66 +46,25 @@ function RestAmqp(opt) {
         opt.http_port ? opt.http_port : '8080';
 
     this.routes = [];
+
+    rest = new Rest(this.__http);
+    amqp = new Amqp(this.__amqp);
+
 }
-
-RestAmqp.prototype._initHttp = function () {
-    this.http = restify.createServer({
-        name:'rest-amqp-http'
-    });
-
-    this.http.use(restify.queryParser());
-    this.http.use(restify.bodyParser());
-};
-
-RestAmqp.prototype._initAmqp = function () {
-    var self = this;
-    var options = this.__amqp.conn_options;
-
-    if (!options.url && !options.host) {
-        options.url = this.__amqp.url;
-    }
-    debug('createConnection options=', options,
-        ', ipml_options=', this.__impl_options || {});
-
-    this.amqp_conn = amqp.createConnection(
-      options,
-        this.__impl_options
-    );
-
-    this.amqp_conn.on('ready', function () {
-        self.setUpExchanges();
-        //debug('connected to ' + self.amqp_conn.serverProperties.product);
-    });
-};
-
-RestAmqp.prototype.setUpExchanges = function () {
-    var self = this;
-    self.amqp_conn.exchange(self.__amqp.exchange_name, { type: 'topic'},
-        function (exchange) {
-            var options = {autoDelete: false, exclusive: false, durable: false};
-            self.amqp_conn.queue(self.__amqp.default_queue, options,
-                function (q) {
-                self.routes.forEach(function (route) {
-                    q.bind(exchange, route.routingKey);
-                    debug('binding created');
-                });
-            });
-        });
-};
 
 RestAmqp.prototype.listen = function (port) {
     var self = this;
     this.__http.port =
         port ? port : this.__http.port;
 
-    this._initHttp();
+    rest.init();
 
-    this.http.get('/http-heartbeat', send);
+    rest.http.get('/http-heartbeat', send);
 
-    this.http.listen(this.__http.port, function () {
-        debug('%s listening at %s', self.http.name, self.http.url);
-        makeRoutes(self.http, self.routes);
-        self._initAmqp();
+    rest.http.listen(this.__http.port, function () {
+        debug('%s listening at %s', rest.http.name, rest.http.url);
+        makeRoutes(rest.http, self.routes);
+        amqp.init();
     });
 };
 
@@ -143,13 +104,7 @@ RestAmqp.prototype.listen = function (port) {
             routingKey: makeRequestRoutingKey(method, path),
             replyTo : this.__amqp.reply_to_queue,
             method : method,
-            path: path,
-            url : '',
-            body: {},
-            params : {},
-            query : {},
-            header : [],
-            cb : callback
+            path: path
         };
 
         this.routes.push(route);
@@ -172,19 +127,31 @@ function makeRoutes(http, routes) {
 
 function makeRoute(http, route) {
     http[route.method](route.path, function (req, res) {
-        route.params = req.params;
-        route.url = req.url;
-        route.query = req.query;
-        route.method = req.method;
-        debug(route);
-        res.send('This is test');
+        var message = makeMessage(req);
+        publishMessage(message);
+        debug(message);
+        res.send(message);
     });
 }
 
-function publishMessage(message) {
-    var self = this;
-    var options = {mandatory: true, deliveryMode: req.method == 'GET' ? 1 : 2 };
-    //self.amqp_conn.exchange.publish(route.routingKey, route,)
+function makeMessage (req) {
+    var message = {};
+    message.params = req.params;
+    message.url = req.url;
+    message.query = req.query;
+    message.method = req.method;
+    message.path = req.route.path;
+    message.routingKey = makeRequestRoutingKey(message.method, message.path);
+
+    return message;
+}
+
+function publishMessage (message) {
+    var options = {mandatory: true, deliveryMode: message.method == 'GET' ? 1 : 2};
+    amqp.exchange.publish(message.routingKey, message, options,
+        function (err, data) {
+            debug(data);
+        });
 }
 
 module.exports.init = function (opt) {
