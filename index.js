@@ -4,6 +4,8 @@ var debug   = require('debug')('rest-amqp');
 var uuid    = require('node-uuid');
 var Rest    = require('./lib/rest');
 var Amqp    = require('./lib/amqp');
+var Response = require('./lib/response');
+
 
 function send(req, res, next) {
     res.send('Hello from rest-amqp');
@@ -49,7 +51,7 @@ function RestAmqp(opt) {
 
     rest = new Rest(this.__http);
     amqp = new Amqp(this.__amqp);
-
+    amqp.routes = this.routes;
 }
 
 RestAmqp.prototype.listen = function (port) {
@@ -63,8 +65,8 @@ RestAmqp.prototype.listen = function (port) {
 
     rest.http.listen(this.__http.port, function () {
         debug('%s listening at %s', rest.http.name, rest.http.url);
-        makeRoutes(rest.http, self.routes);
         amqp.init();
+        makeRoutes(rest.http, self.routes);
     });
 };
 
@@ -104,17 +106,21 @@ RestAmqp.prototype.listen = function (port) {
             routingKey: makeRequestRoutingKey(method, path),
             replyTo : this.__amqp.reply_to_queue,
             method : method,
-            path: path
+            path: path,
+            callback: callback
         };
 
         this.routes.push(route);
-
-        callback('request', 'response');
     };
 });
 
 function makeRequestRoutingKey (method, path) {
     var routingKey = 'REQUEST.WORK.' + method.toUpperCase() + path.replace(/\//g, '.');
+    return routingKey;
+}
+
+function makeResponseRoutingKey (message) {
+    var routingKey = 'RESPONSE.' + message.code + '.' + message.method.toUpperCase() + message.path.replace(/\//g, '.');
     return routingKey;
 }
 
@@ -129,19 +135,36 @@ function makeRoute(http, route) {
     http[route.method](route.path, function (req, res) {
         var message = makeMessage(req);
         publishMessage(message);
-        debug(message);
-        res.send(message);
+        message.response.onSend = function (code, body) {
+            message.routingKey = makeResponseRoutingKey(message);
+            publishMessage(message);
+        };
+
+        amqp.onWorkMessage = function (msg) {
+            if (msg.id === message.id) {
+                req.message = msg;
+                route.callback(req, message.response);
+            };
+        };
+        amqp.onReplyMessage = function (msg) {
+            if (msg.id === message.id) {
+                res.send(msg.response.code, msg.response.body);
+            };
+        };
     });
 }
 
 function makeMessage (req) {
     var message = {};
+    message.id = uuid.v4();
     message.params = req.params;
     message.url = req.url;
     message.query = req.query;
     message.method = req.method;
     message.path = req.route.path;
     message.routingKey = makeRequestRoutingKey(message.method, message.path);
+    message.payload = req.body;
+    message.response = new Response(message.id);
 
     return message;
 }
@@ -151,6 +174,7 @@ function publishMessage (message) {
     amqp.exchange.publish(message.routingKey, message, options,
         function (err, data) {
             debug(data);
+            debug('message published');
         });
 }
 
