@@ -28,18 +28,45 @@
 npm install --save rest-amqp
 </code></pre>
 
-<p>Example:
-    var restAMQP = require('../index').init();
-    var debug    = require('debug')('rest-amqp-sample');</p>
+<p>Example:</p>
 
-<pre><code>restAMQP.get('/hi/:id', function (req, res) {
-   res.send("Hello rest-amqp");
-});
+<h1>
+<a id="rest-amqp" class="anchor" href="#rest-amqp" aria-hidden="true"><span class="octicon octicon-link"></span></a>rest-amqp</h1>
 
-restAMQP.listen();
+<p>Rest API using amqp protocol build on nodejs
+<a href="http://bikashsharmabks.github.io/rest-amqp">http://bikashsharmabks.github.io/rest-amqp</a></p>
+
+<p>Topic Exchange library based on AMQP protocol.
+Tested with RabbitMQ on the highload project.</p>
+
+<h3>
+<a id="install-rabitmq" class="anchor" href="#install-rabitmq" aria-hidden="true"><span class="octicon octicon-link"></span></a>Install RabitMQ</h3>
+
+<pre><code>apt-get install rabbitmq-server
 </code></pre>
 
-<p>More documentation to follow</p>
+<h3>
+<a id="sample-code-in-samplejs" class="anchor" href="#sample-code-in-samplejs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Sample code in sample.js</h3>
+
+<pre><code>var restAMQP = require('../index').init();
+var debug    = require('debug')('rest-amqp-sample');
+
+restAMQP.get('/hi/:id', function (req, res) {
+    debug('here i need to write business logic');
+    res.send(200, {name: req.params.id});
+});
+
+restAMQP.listen(8081);
+</code></pre>
+
+<h3>
+<a id="output" class="anchor" href="#output" aria-hidden="true"><span class="octicon octicon-link"></span></a>Output</h3>
+
+<pre><code>GET http://localhost:8081/hi/aj?a=1
+{
+    "name": "aj"
+}
+</code></pre>
 
 <h3>
 <a id="authors-and-contributors" class="anchor" href="#authors-and-contributors" aria-hidden="true"><span class="octicon octicon-link"></span></a>Authors and Contributors</h3>
