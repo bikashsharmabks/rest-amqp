@@ -51,7 +51,7 @@ function RestAmqp(opt) {
 
     rest = new Rest(this.__http);
     amqp = new Amqp(this.__amqp);
-    amqp.routes = this.routes;
+    amqp.routes = this.routes;   
 }
 
 RestAmqp.prototype.listen = function (port) {
@@ -109,7 +109,6 @@ RestAmqp.prototype.listen = function (port) {
             path: path,
             callback: callback
         };
-
         this.routes.push(route);
     };
 });
@@ -132,31 +131,24 @@ function makeRoutes(http, routes) {
 }
 
 function makeRoute(http, route) {
-    http[route.method](route.path, function (req, res) {
+    http[route.method](route.path, function (req, res, next) {
+        req.__routeId = route.id;
         var message = makeMessage(req);
-        publishMessage(message);
         message.response.onSend = function (code, body) {
+            message.code = code;
+            message.body = body;
             message.routingKey = makeResponseRoutingKey(message);
             publishMessage(message);
         };
-
-        amqp.onWorkMessage = function (msg) {
-            if (msg.id === message.id) {
-                req.message = msg;
-                route.callback(req, message.response);
-            };
-        };
-        amqp.onReplyMessage = function (msg) {
-            if (msg.id === message.id) {
-                res.send(msg.response.code, msg.response.body);
-            };
-        };
+        route.callback(req, message.response);
+        amqp.addCallbackHandler(res, message);
     });
 }
 
 function makeMessage (req) {
     var message = {};
     message.id = uuid.v4();
+    message.routeId = req.__routeId;
     message.params = req.params;
     message.url = req.url;
     message.query = req.query;
